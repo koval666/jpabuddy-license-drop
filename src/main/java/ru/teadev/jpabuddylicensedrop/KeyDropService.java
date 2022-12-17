@@ -23,7 +23,6 @@ import org.springframework.stereotype.Service;
 public class KeyDropService {
 
     private static final Long ADMIN_USER_ID = 303125770L;
-    private static final String GET_KEY_COMMAND = "/get_key";
 
     @Value("${TELEGRAM_TOKEN}")
     String telegramToken;
@@ -31,6 +30,7 @@ public class KeyDropService {
     String requiredChatId;
 
     private final HandleAdminMessage handleAdminMessage;
+    private final HandleGroupMemberMessage handleGroupMemberMessage;
 
     private TelegramBot bot;
 
@@ -68,18 +68,12 @@ public class KeyDropService {
                 handleAdminMessage.execute(bot, message);
 
             } else if (isGroupMember(userId)) {
-                handelGroupMemberMessage(userId);
+                handleGroupMemberMessage.execute(bot, message);
 
             } else {
                 handleForeignMessage(userId);
             }
         }
-    }
-
-
-    private void handelGroupMemberMessage(Long userId) {
-        bot.execute(
-                message(userId, "Ваш ключ:\n12345"));
     }
 
     private void handleForeignMessage(Long userId) {

@@ -17,4 +17,8 @@ public interface LicenseKeyRepository extends JpaRepository<LicenseKey, Long> {
 
     long deleteByKeyIn(Collection<String> keys);
 
+    LicenseKey findByOwner_UserId(Long userId);
+
+    LicenseKey findFirstByOwner_UserIdNull();
+
 }
