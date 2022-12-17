@@ -26,6 +26,7 @@ public class HandleGroupMemberMessage {
     public void executeWithCommandFilter(TelegramBot bot, Message message) {
         if (!GET_KEY_COMMAND.equals(message.text())) {
             log.info("Skip message, wrong text command: " + message.text());
+            bot.execute(createMessage(message.from().id(), "Используйте команду " + GET_KEY_COMMAND));
             return;
         }
 

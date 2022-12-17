@@ -1,7 +1,11 @@
 package ru.teadev.jpabuddylicensedrop;
 
+import java.nio.charset.Charset;
 import java.util.List;
+import java.util.Objects;
 import javax.annotation.PostConstruct;
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
 
 import static com.pengrad.telegrambot.model.Chat.Type.Private;
 
@@ -9,6 +13,7 @@ import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.Update;
+import com.pengrad.telegrambot.model.request.ReplyKeyboardRemove;
 import com.pengrad.telegrambot.request.GetChatMember;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.GetChatMemberResponse;
@@ -16,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 @Service
 @Slf4j
@@ -23,6 +30,7 @@ import org.springframework.stereotype.Service;
 public class KeyDropService {
 
     private static final Long ADMIN_USER_ID = 303125770L;
+    public static final String BOT_USERNAME = "@innotech_jpabuddy_key_drop_bot";
 
     @Value("${TELEGRAM_TOKEN}")
     String telegramToken;
@@ -60,7 +68,7 @@ public class KeyDropService {
 
     private void handleMessage(Message message) {
 
-        if (isChatPrivate(message)) {
+        if (isPrivateChat(message)) {
 
             Long userId = message.chat().id();
 
@@ -73,7 +81,34 @@ public class KeyDropService {
             } else {
                 handleForeignMessage(userId);
             }
+
+        } else {
+            log.info("Not private chat call: " + message.chat().title());
+            bot.execute(message(message.chat().id(),
+                    "Для получения ключа напишите боту в личку:\n" + BOT_USERNAME));
+            sendJoke(bot, message.chat().id());
         }
+    }
+
+    private void sendJoke(TelegramBot bot, Long chatId) {
+        WebClient webClient = WebClient.builder()
+                .baseUrl("http://rzhunemogu.ru/Rand.aspx?CType=1")
+                .build();
+
+        Mono<Joke> jokeMono = webClient.get()
+                .acceptCharset(Charset.forName("windows-1251"))
+                .retrieve()
+                .bodyToMono(Joke.class);
+
+        jokeMono.doOnError(throwable -> log.error(throwable.getMessage(), throwable))
+                .filter(Objects::nonNull)
+                .subscribe(joke -> bot.execute(message(chatId, "Анекдот вспомнился:\n\n" + joke.content)));
+    }
+
+    @XmlRootElement(name = "root")
+    static class Joke {
+        @XmlElement
+        String content;
     }
 
     private void handleForeignMessage(Long userId) {
@@ -85,7 +120,7 @@ public class KeyDropService {
         return ADMIN_USER_ID.equals(userId);
     }
 
-    private boolean isChatPrivate(Message message) {
+    private boolean isPrivateChat(Message message) {
         return message != null
                 && message.chat() != null
                 && Private.equals(message.chat().type());
@@ -93,7 +128,7 @@ public class KeyDropService {
 
     private static SendMessage message(Long chatId, String text) {
         return new SendMessage(chatId, text)
-                .disableWebPagePreview(true);
+                .replyMarkup(new ReplyKeyboardRemove());
     }
 
     private boolean isGroupMember(Long userId) {
