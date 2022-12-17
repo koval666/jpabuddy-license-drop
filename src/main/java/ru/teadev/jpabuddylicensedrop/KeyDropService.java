@@ -68,7 +68,7 @@ public class KeyDropService {
                 handleAdminMessage.execute(bot, message);
 
             } else if (isGroupMember(userId)) {
-                handleGroupMemberMessage.execute(bot, message);
+                handleGroupMemberMessage.executeWithCommandFilter(bot, message);
 
             } else {
                 handleForeignMessage(userId);

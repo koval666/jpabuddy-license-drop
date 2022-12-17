@@ -15,7 +15,8 @@ enum AdminAction {
     GIVEN_COUNT("Сколько выданных ключей", false),
     GIVEN_LIST("Выданные ключи", false),
     FREE_COUNT("Сколько свободных ключей", false),
-    FREE_LIST("Свободные ключи", false);
+    FREE_LIST("Свободные ключи", false),
+    GET_KEY_AS_USER("Получить ключ как юзер", false);
 
 
     @NonNull

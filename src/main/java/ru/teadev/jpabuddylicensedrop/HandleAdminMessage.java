@@ -5,11 +5,15 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static java.text.MessageFormat.format;
+
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.request.ReplyKeyboardMarkup;
 import com.pengrad.telegrambot.request.SendMessage;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.teadev.jpabuddylicensedrop.storage.AdminAction;
@@ -18,6 +22,7 @@ import ru.teadev.jpabuddylicensedrop.storage.LicenseKeyRepository;
 import ru.teadev.jpabuddylicensedrop.storage.UserState;
 import ru.teadev.jpabuddylicensedrop.storage.UserStateRepository;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class HandleAdminMessage {
@@ -28,12 +33,16 @@ public class HandleAdminMessage {
 
     private final LicenseKeyRepository licenseKeyRepository;
     private final UserStateRepository userStateRepository;
+    @Autowired
+    private HandleGroupMemberMessage handleGroupMemberMessage;
 
 
     @Transactional(rollbackFor = Exception.class)
     public void execute(TelegramBot bot, Message message) {
+
         String text = message.text();
         Long fromId = message.from().id();
+        log.info(format("Admin message processing:\ntext: {0}\nauthor: {1}", text, message.from().username()));
 
         UserState userState = userStateRepository.findById(fromId)
                 .orElseGet(() -> new UserState(fromId));
@@ -152,6 +161,9 @@ public class HandleAdminMessage {
             }
             break;
 
+            case GET_KEY_AS_USER:
+                handleGroupMemberMessage.execute(bot, message);
+                break;
             default:
                 throw new IllegalStateException("Unexpected value: " + action);
         }
