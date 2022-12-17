@@ -1,5 +1,6 @@
 package ru.teadev.jpabuddylicensedrop;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -23,6 +24,7 @@ public class HandleAdminMessage {
 
     public static final String CANCEL_COMMAND = "Отмена";
     public static final String KEY_INPUT_SEPARATOR = "\n";
+    public static final int MESSAGE_LENGTH_LIMIT = 4000;
 
     private final LicenseKeyRepository licenseKeyRepository;
     private final UserStateRepository userStateRepository;
@@ -127,8 +129,10 @@ public class HandleAdminMessage {
 
             case GIVEN_LIST: {
                 List<LicenseKey> userIdNotNull = licenseKeyRepository.findByOwner_UserIdNotNull();
-                bot.execute(
-                        messageWithActionButtons(message.chat().id(), listString(userIdNotNull)));
+                for (String licenseString : licenseStrings(userIdNotNull)) {
+                    bot.execute(
+                            messageWithActionButtons(message.chat().id(), licenseString));
+                }
             }
             break;
 
@@ -141,8 +145,10 @@ public class HandleAdminMessage {
 
             case FREE_LIST: {
                 List<LicenseKey> userIdNull = licenseKeyRepository.findByOwner_UserIdNull();
-                bot.execute(
-                        messageWithActionButtons(message.chat().id(), listString(userIdNull)));
+                for (String licenseString : licenseStrings(userIdNull)) {
+                    bot.execute(
+                            messageWithActionButtons(message.chat().id(), licenseString));
+                }
             }
             break;
 
@@ -151,13 +157,37 @@ public class HandleAdminMessage {
         }
     }
 
-    private static String listString(List<LicenseKey> licenseKeys) {
+    private static List<String> licenseStrings(List<LicenseKey> licenseKeys) {
         if (licenseKeys.isEmpty()) {
-            return "[]";
+            return List.of("[]");
         }
-        return licenseKeys.stream()
-                .map(LicenseKey::toString)
-                .collect(Collectors.joining(KEY_INPUT_SEPARATOR));
+
+        List<String> keyStrings = new ArrayList<>();
+        StringBuilder stringBuilder = new StringBuilder();
+
+        for (LicenseKey licenseKey : licenseKeys) {
+            int beforeLength = stringBuilder.length();
+            String licenseKeyString = licenseKey.toString();
+
+            if (licenseKeyString.length() > MESSAGE_LENGTH_LIMIT) {
+                throw new RuntimeException("Too long single license key string");
+
+            } else if (beforeLength + licenseKeyString.length() > MESSAGE_LENGTH_LIMIT) {
+                keyStrings.add(stringBuilder.toString());
+                stringBuilder = new StringBuilder();
+                stringBuilder.append(licenseKeyString);
+                stringBuilder.append(KEY_INPUT_SEPARATOR);
+
+            } else {
+
+                stringBuilder.append(licenseKeyString);
+                stringBuilder.append(KEY_INPUT_SEPARATOR);
+            }
+        }
+
+        keyStrings.add(stringBuilder.toString());
+
+        return keyStrings;
     }
 
     private SendMessage messageWithActionButtons(Long chatId, String text) {
