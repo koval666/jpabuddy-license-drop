@@ -18,10 +18,9 @@
         <vaadin.version>23.3.0</vaadin.version>
     </properties>
     <dependencies>
-        <!--suppress VulnerableLibrariesLocal -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
         <dependency>
