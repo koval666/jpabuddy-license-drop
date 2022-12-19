@@ -8,18 +8,23 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 
 import static com.pengrad.telegrambot.model.Chat.Type.Private;
+import static java.text.MessageFormat.format;
+import static java.util.Optional.ofNullable;
 
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.UpdatesListener;
+import com.pengrad.telegrambot.model.ChatMember;
+import com.pengrad.telegrambot.model.ChatMember.Status;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.Update;
+import com.pengrad.telegrambot.model.User;
 import com.pengrad.telegrambot.model.request.ReplyKeyboardRemove;
 import com.pengrad.telegrambot.request.GetChatMember;
 import com.pengrad.telegrambot.request.SendMessage;
 import com.pengrad.telegrambot.response.GetChatMemberResponse;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
@@ -29,13 +34,10 @@ import reactor.core.publisher.Mono;
 @RequiredArgsConstructor
 public class KeyDropService {
 
-    private static final Long ADMIN_USER_ID = 303125770L;
-    public static final String BOT_USERNAME = "@innotech_jpabuddy_key_drop_bot";
+    private static final List<Status> CHAT_MEMBER_STATUSES =
+            List.of(Status.member, Status.administrator, Status.creator);
 
-    @Value("${TELEGRAM_TOKEN}")
-    String telegramToken;
-    @Value("${REQUIRED_CHAT_ID}")
-    String requiredChatId;
+    private final Config config;
 
     private final HandleAdminMessage handleAdminMessage;
     private final HandleGroupMemberMessage handleGroupMemberMessage;
@@ -44,7 +46,7 @@ public class KeyDropService {
 
     @PostConstruct
     void initBot() {
-        bot = new TelegramBot(telegramToken);
+        bot = new TelegramBot(config.getTelegramToken());
 
         bot.setUpdatesListener(new UpdatesListener() {
             @Override
@@ -53,7 +55,9 @@ public class KeyDropService {
                 for (Update update : updates) {
                     Message message = update.message();
                     try {
-                        handleMessage(message);
+                        if (message != null) {
+                            handleMessage(message);
+                        }
                     } catch (Exception e) {
                         bot.execute(
                                 message(message.chat().id(), "Ошибка " + e.getClass().getSimpleName()));
@@ -66,27 +70,32 @@ public class KeyDropService {
         });
     }
 
-    private void handleMessage(Message message) {
+    private void handleMessage(@NonNull Message message) {
 
         if (isPrivateChat(message)) {
 
             Long userId = message.chat().id();
+            String text = message.text();
+            String username = ofNullable(message.from()).map(User::username).orElse(null);
 
             if (isAdmin(userId)) {
+                log.info(format("Admin message processing:\ntext: {0}\nauthor: @{1}", text, username));
                 handleAdminMessage.execute(bot, message);
 
             } else if (isGroupMember(userId)) {
+                log.info(format("Group member message processing:\ntext: {0}\nauthor: @{1}", text, username));
                 handleGroupMemberMessage.executeWithCommandFilter(bot, message);
 
             } else {
+                log.info("Foreign user message from: @" + username);
                 handleForeignMessage(userId);
             }
 
-        } else {
+        } else if ((config.getGetKeyCommand() + config.getBotUsername()).equals(message.text())) {
             log.info("Not private chat call: " + message.chat().title());
             bot.execute(message(message.chat().id(),
-                    "Для получения ключа напишите боту в личку:\n" + BOT_USERNAME));
-            sendJoke(bot, message.chat().id());
+                    "Для получения ключа напишите боту в личку:\n" + config.getBotUsername()));
+//            sendJoke(bot, message.chat().id());
         }
     }
 
@@ -117,7 +126,7 @@ public class KeyDropService {
     }
 
     private boolean isAdmin(Long userId) {
-        return ADMIN_USER_ID.equals(userId);
+        return config.getAdminUserId().equals(userId);
     }
 
     private boolean isPrivateChat(Message message) {
@@ -132,9 +141,12 @@ public class KeyDropService {
     }
 
     private boolean isGroupMember(Long userId) {
-        GetChatMember getChatMember = new GetChatMember(requiredChatId, userId);
+        GetChatMember getChatMember = new GetChatMember(config.getRequiredChatId(), userId);
         GetChatMemberResponse memberResponse = bot.execute(getChatMember);
+        ChatMember chatMember = memberResponse.chatMember();
 
-        return memberResponse.chatMember() != null;
+        return chatMember != null
+                && chatMember.status() != null
+                && CHAT_MEMBER_STATUSES.contains(chatMember.status());
     }
 }

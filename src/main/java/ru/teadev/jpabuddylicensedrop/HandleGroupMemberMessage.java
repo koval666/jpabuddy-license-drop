@@ -18,15 +18,14 @@ import ru.teadev.jpabuddylicensedrop.storage.Owner;
 @RequiredArgsConstructor
 public class HandleGroupMemberMessage {
 
-    private static final String GET_KEY_COMMAND = "/get_key";
-
+    private final Config config;
     private final LicenseKeyRepository licenseKeyRepository;
 
     @Transactional(rollbackFor = Exception.class)
     public void executeWithCommandFilter(TelegramBot bot, Message message) {
-        if (!GET_KEY_COMMAND.equals(message.text())) {
+        if (!config.getGetKeyCommand().equals(message.text())) {
             log.info("Skip message, wrong text command: " + message.text());
-            bot.execute(createMessage(message.from().id(), "Используйте команду " + GET_KEY_COMMAND));
+            bot.execute(createMessage(message.from().id(), "Используйте команду " + config.getGetKeyCommand()));
             return;
         }
 

@@ -5,8 +5,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static java.text.MessageFormat.format;
-
 import com.pengrad.telegrambot.TelegramBot;
 import com.pengrad.telegrambot.model.Message;
 import com.pengrad.telegrambot.model.request.ReplyKeyboardMarkup;
@@ -27,9 +25,7 @@ import ru.teadev.jpabuddylicensedrop.storage.UserStateRepository;
 @RequiredArgsConstructor
 public class HandleAdminMessage {
 
-    public static final String CANCEL_COMMAND = "Отмена";
-    public static final String KEY_INPUT_SEPARATOR = "\n";
-    public static final int MESSAGE_LENGTH_LIMIT = 4000;
+    private final Config config;
 
     private final LicenseKeyRepository licenseKeyRepository;
     private final UserStateRepository userStateRepository;
@@ -42,7 +38,6 @@ public class HandleAdminMessage {
 
         String text = message.text();
         Long fromId = message.from().id();
-        log.info(format("Admin message processing:\ntext: {0}\nauthor: {1}", text, message.from().username()));
 
         UserState userState = userStateRepository.findById(fromId)
                 .orElseGet(() -> new UserState(fromId));
@@ -65,7 +60,7 @@ public class HandleAdminMessage {
                         messageWithActionButtons(fromId, "Привет админ!"));
             }
 
-        } else if (CANCEL_COMMAND.equalsIgnoreCase(text)) {
+        } else if (config.getCancelCommand().equalsIgnoreCase(text)) {
             bot.execute(messageWithActionButtons(fromId, "Отменено"));
             userState.setPreviousAction(null);
             userStateRepository.save(userState);
@@ -96,7 +91,7 @@ public class HandleAdminMessage {
             return;
         }
 
-        Arrays.stream(text.split(KEY_INPUT_SEPARATOR))
+        Arrays.stream(text.split(config.getInputSeparator()))
                 .map(key -> {
                     LicenseKey licenseKey = new LicenseKey();
                     licenseKey.setKey(key);
@@ -110,7 +105,7 @@ public class HandleAdminMessage {
             return 0;
         }
 
-        List<String> keyForRemove = Arrays.stream(text.split(KEY_INPUT_SEPARATOR))
+        List<String> keyForRemove = Arrays.stream(text.split(config.getInputSeparator()))
                 .collect(Collectors.toList());
 
         return licenseKeyRepository.deleteByKeyIn(keyForRemove);
@@ -124,7 +119,7 @@ public class HandleAdminMessage {
                 SendMessage sendMessage = createMessage(
                         message.chat().id(),
                         "Введите ключи, разделитель - новая строка")
-                        .replyMarkup(new ReplyKeyboardMarkup(CANCEL_COMMAND).resizeKeyboard(true));
+                        .replyMarkup(new ReplyKeyboardMarkup(config.getCancelCommand()).resizeKeyboard(true));
                 bot.execute(sendMessage);
             }
             break;
@@ -169,7 +164,7 @@ public class HandleAdminMessage {
         }
     }
 
-    private static List<String> licenseStrings(List<LicenseKey> licenseKeys) {
+    private List<String> licenseStrings(List<LicenseKey> licenseKeys) {
         if (licenseKeys.isEmpty()) {
             return List.of("[]");
         }
@@ -181,19 +176,19 @@ public class HandleAdminMessage {
             int beforeLength = stringBuilder.length();
             String licenseKeyString = licenseKey.toString();
 
-            if (licenseKeyString.length() > MESSAGE_LENGTH_LIMIT) {
+            if (licenseKeyString.length() > config.getMessageMaxLength()) {
                 throw new RuntimeException("Too long single license key string");
 
-            } else if (beforeLength + licenseKeyString.length() > MESSAGE_LENGTH_LIMIT) {
+            } else if (beforeLength + licenseKeyString.length() > config.getMessageMaxLength()) {
                 keyStrings.add(stringBuilder.toString());
                 stringBuilder = new StringBuilder();
                 stringBuilder.append(licenseKeyString);
-                stringBuilder.append(KEY_INPUT_SEPARATOR);
+                stringBuilder.append(config.getInputSeparator());
 
             } else {
 
                 stringBuilder.append(licenseKeyString);
-                stringBuilder.append(KEY_INPUT_SEPARATOR);
+                stringBuilder.append(config.getInputSeparator());
             }
         }
 
