@@ -157,7 +157,7 @@ public class HandleAdminMessage {
             break;
 
             case GET_KEY_AS_USER:
-                handleGroupMemberMessage.execute(bot, message);
+                handleGroupMemberMessage.execute(bot, message.from());
                 break;
             default:
                 throw new IllegalStateException("Unexpected value: " + action);

@@ -84,7 +84,7 @@ public class KeyDropService {
 
             } else if (isGroupMember(userId)) {
                 log.info(format("Group member message processing:\ntext: {0}\nauthor: @{1}", text, username));
-                handleGroupMemberMessage.executeWithCommandFilter(bot, message);
+                handleGroupMemberMessage.executeWithActionFilter(bot, message);
 
             } else {
                 log.info("Foreign user message from: @" + username);
