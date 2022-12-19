@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/license_drop
-    username: postgres
-    password: 12345
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:license_drop}
+    username: ${PGUSER:postgres}
+    password: ${PGPASSWORD:12345}
   jpa:
     hibernate:
       ddl-auto: update
